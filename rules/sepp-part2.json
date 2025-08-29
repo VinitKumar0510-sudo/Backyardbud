@@ -1,0 +1,90 @@
+{
+  "shed": {
+    "height_limit": {
+      "condition": "height <= 4.0",
+      "clause": "SEPP Part 2, Clause 2.12(a)",
+      "description": "Structure height must not exceed 4 metres"
+    },
+    "area_limit": {
+      "condition": "floorArea <= 50",
+      "clause": "SEPP Part 2, Clause 2.12(b)",
+      "description": "Floor area must not exceed 50 square metres"
+    },
+    "setback_requirement": {
+      "condition": "distanceFromBoundary >= 1.5",
+      "clause": "SEPP Part 2, Clause 2.12(c)",
+      "description": "Minimum 1.5m setback from all boundaries required"
+    },
+    "lot_size_minimum": {
+      "condition": "lotSize >= 450",
+      "clause": "SEPP Part 2, Clause 2.12(d)",
+      "description": "Minimum lot size of 450 square metres required"
+    }
+  },
+  "patio": {
+    "height_limit": {
+      "condition": "height <= 3.0",
+      "clause": "SEPP Part 2, Clause 2.13(a)",
+      "description": "Patio height must not exceed 3 metres"
+    },
+    "area_limit": {
+      "condition": "floorArea <= 40",
+      "clause": "SEPP Part 2, Clause 2.13(b)",
+      "description": "Floor area must not exceed 40 square metres"
+    },
+    "setback_requirement": {
+      "condition": "distanceFromBoundary >= 1.0",
+      "clause": "SEPP Part 2, Clause 2.13(c)",
+      "description": "Minimum 1.0m setback from all boundaries required"
+    },
+    "lot_size_minimum": {
+      "condition": "lotSize >= 300",
+      "clause": "SEPP Part 2, Clause 2.13(d)",
+      "description": "Minimum lot size of 300 square metres required"
+    }
+  },
+  "pergola": {
+    "height_limit": {
+      "condition": "height <= 3.5",
+      "clause": "SEPP Part 2, Clause 2.14(a)",
+      "description": "Pergola height must not exceed 3.5 metres"
+    },
+    "area_limit": {
+      "condition": "floorArea <= 35",
+      "clause": "SEPP Part 2, Clause 2.14(b)",
+      "description": "Floor area must not exceed 35 square metres"
+    },
+    "setback_requirement": {
+      "condition": "distanceFromBoundary >= 1.0",
+      "clause": "SEPP Part 2, Clause 2.14(c)",
+      "description": "Minimum 1.0m setback from all boundaries required"
+    },
+    "lot_size_minimum": {
+      "condition": "lotSize >= 300",
+      "clause": "SEPP Part 2, Clause 2.14(d)",
+      "description": "Minimum lot size of 300 square metres required"
+    }
+  },
+  "carport": {
+    "height_limit": {
+      "condition": "height <= 4.0",
+      "clause": "SEPP Part 2, Clause 2.15(a)",
+      "description": "Carport height must not exceed 4 metres"
+    },
+    "area_limit": {
+      "condition": "floorArea <= 60",
+      "clause": "SEPP Part 2, Clause 2.15(b)",
+      "description": "Floor area must not exceed 60 square metres"
+    },
+    "setback_requirement": {
+      "condition": "distanceFromBoundary >= 1.5",
+      "clause": "SEPP Part 2, Clause 2.15(c)",
+      "description": "Minimum 1.5m setback from all boundaries required"
+    },
+    "lot_size_minimum": {
+      "condition": "lotSize >= 450",
+      "clause": "SEPP Part 2, Clause 2.15(d)",
+      "description": "Minimum lot size of 450 square metres required"
+    }
+  }
+}
