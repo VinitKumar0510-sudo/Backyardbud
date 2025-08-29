@@ -40,11 +40,43 @@ const AddressMap = ({ onAddressSelect, onPropertyInfoUpdate, selectedAddress }) 
 
     setLoading(true);
     try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}, Albury, NSW, Australia&limit=5&addressdetails=1`
-      );
-      const data = await response.json();
-      setSearchResults(data);
+      // Try multiple search strategies
+      const searches = [
+        // Search with Albury context
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ', Albury, NSW, Australia')}&limit=3&addressdetails=1`,
+        // Broader NSW search
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ', NSW, Australia')}&limit=2&addressdetails=1`
+      ];
+
+      let allResults = [];
+      
+      for (const searchUrl of searches) {
+        try {
+          const response = await fetch(searchUrl, {
+            headers: {
+              'User-Agent': 'BackyardBuds/1.0'
+            }
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data && Array.isArray(data)) {
+              allResults = [...allResults, ...data];
+            }
+          }
+        } catch (err) {
+          console.warn('Search attempt failed:', err);
+        }
+      }
+
+      // Remove duplicates and limit results
+      const uniqueResults = allResults
+        .filter((result, index, self) => 
+          index === self.findIndex(r => r.place_id === result.place_id)
+        )
+        .slice(0, 5);
+
+      setSearchResults(uniqueResults);
     } catch (error) {
       console.error('Geocoding error:', error);
       setSearchResults([]);
@@ -148,10 +180,10 @@ const AddressMap = ({ onAddressSelect, onPropertyInfoUpdate, selectedAddress }) 
 
         {/* Search Results Dropdown */}
         {searchResults.length > 0 && (
-          <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
+          <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-300 rounded-md shadow-xl max-h-60 overflow-auto">
             {searchResults.map((result, index) => (
               <button
-                key={index}
+                key={result.place_id || index}
                 type="button"
                 className="w-full px-4 py-2 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
                 onClick={() => handleAddressSelect(result)}
@@ -159,14 +191,29 @@ const AddressMap = ({ onAddressSelect, onPropertyInfoUpdate, selectedAddress }) 
                 <div className="text-sm font-medium text-gray-900">
                   {result.display_name}
                 </div>
+                <div className="text-xs text-gray-500">
+                  {result.type && `${result.type} • `}{result.addresstype || 'Address'}
+                </div>
               </button>
             ))}
+          </div>
+        )}
+        
+        {/* No results message */}
+        {searchQuery.length >= 3 && !loading && searchResults.length === 0 && (
+          <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-300 rounded-md shadow-xl p-4">
+            <p className="text-sm text-gray-500">No addresses found. Try:</p>
+            <ul className="text-xs text-gray-400 mt-1">
+              <li>• "123 Dean Street, Albury"</li>
+              <li>• "Albury Railway Station"</li>
+              <li>• Just the street name</li>
+            </ul>
           </div>
         )}
       </div>
 
       {/* Map */}
-      <div className="h-64 rounded-lg overflow-hidden border border-gray-300">
+      <div className="h-64 rounded-lg overflow-hidden border border-gray-300 relative z-10">
         <MapContainer
           center={mapCenter}
           zoom={15}
@@ -184,9 +231,12 @@ const AddressMap = ({ onAddressSelect, onPropertyInfoUpdate, selectedAddress }) 
         </MapContainer>
       </div>
 
-      <p className="text-sm text-gray-500">
-        Search for your property address or click on the map to select a location
-      </p>
+      <div className="text-sm text-gray-500">
+        <p className="mb-2">Search for your property address or click on the map to select a location</p>
+        <div className="text-xs">
+          <strong>Try searching:</strong> "123 Dean Street, Albury" or "Albury Railway Station"
+        </div>
+      </div>
     </div>
   );
 };
