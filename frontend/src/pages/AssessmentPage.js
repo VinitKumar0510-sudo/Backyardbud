@@ -129,7 +129,7 @@ const AssessmentPage = () => {
           />
           <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3">Backyard Assessment</h1>
           <p className="text-gray-600 text-lg">
-            Let's check if your backyard project qualifies as exempt development!
+            Check if your backyard project qualifies as exempt development across Australia!
           </p>
         </div>
 
@@ -324,7 +324,7 @@ const AssessmentPage = () => {
             </li>
             <li className="flex items-start">
               <span className="text-blue-600 mr-2">•</span>
-              Floor area includes the total covered area of the structure
+              Rules may vary by state - this tool uses NSW SEPP guidelines
             </li>
           </ul>
         </div>

@@ -28,55 +28,79 @@ const AddressMap = ({ onAddressSelect, onPropertyInfoUpdate, selectedAddress }) 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
   const [mapCenter, setMapCenter] = useState([-36.0737, 146.9135]); // Albury coordinates
   const [markerPosition, setMarkerPosition] = useState(null);
   const searchTimeout = useRef(null);
 
   const searchAddress = async (query) => {
-    if (!query || query.length < 3) {
+    if (!query || query.length < 2) {
       setSearchResults([]);
+      setHasSearched(false);
       return;
     }
 
     setLoading(true);
+    setHasSearched(true);
     try {
-      // Try multiple search strategies
-      const searches = [
-        // Search with Albury context
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ', Albury, NSW, Australia')}&limit=3&addressdetails=1`,
-        // Broader NSW search
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ', NSW, Australia')}&limit=2&addressdetails=1`
-      ];
-
-      let allResults = [];
+      console.log('Searching for:', query);
       
-      for (const searchUrl of searches) {
-        try {
-          const response = await fetch(searchUrl, {
-            headers: {
-              'User-Agent': 'BackyardBuds/1.0'
-            }
-          });
+      // If it's already a full address, try to parse and use it directly
+      if (query.includes(',') && query.includes('Australia')) {
+        // Extract key parts for a simpler search
+        const parts = query.split(',').map(p => p.trim());
+        const streetPart = parts[0] + (parts[1] ? ', ' + parts[1] : '');
+        const suburb = parts.find(p => !p.match(/^\d/) && p !== 'Australia' && p !== 'Victoria' && p !== 'NSW' && p !== 'QLD');
+        
+        if (streetPart && suburb) {
+          const simplifiedQuery = `${streetPart}, ${suburb}`;
+          console.log('Simplified query:', simplifiedQuery);
+          
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(simplifiedQuery)}&countrycodes=au&limit=5&addressdetails=1`,
+            { headers: { 'User-Agent': 'BackyardBuds/1.0' } }
+          );
           
           if (response.ok) {
             const data = await response.json();
-            if (data && Array.isArray(data)) {
-              allResults = [...allResults, ...data];
+            if (data && data.length > 0) {
+              setSearchResults(data);
+              setLoading(false);
+              return;
             }
           }
-        } catch (err) {
-          console.warn('Search attempt failed:', err);
         }
       }
-
-      // Remove duplicates and limit results
-      const uniqueResults = allResults
-        .filter((result, index, self) => 
-          index === self.findIndex(r => r.place_id === result.place_id)
-        )
-        .slice(0, 5);
-
-      setSearchResults(uniqueResults);
+      
+      // Try multiple search strategies
+      const searchQueries = [
+        query,
+        query.replace(/, Australia$/, ''),
+        query.split(',')[0] + ', ' + query.split(',').slice(-3, -1).join(', '), // Street + suburb + state
+        query.split(',').slice(-3, -1).join(', ') // Just suburb + state
+      ].filter((q, i, arr) => arr.indexOf(q) === i); // Remove duplicates
+      
+      for (const searchQuery of searchQueries) {
+        console.log('Trying search:', searchQuery);
+        
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&countrycodes=au&limit=3&addressdetails=1`,
+          { headers: { 'User-Agent': 'BackyardBuds/1.0' } }
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.length > 0) {
+            console.log('Found results with query:', searchQuery, data);
+            setSearchResults(data);
+            setLoading(false);
+            return;
+          }
+        }
+      }
+      
+      console.log('No results found for any query variation');
+      setSearchResults([]);
     } catch (error) {
       console.error('Geocoding error:', error);
       setSearchResults([]);
@@ -89,13 +113,35 @@ const AddressMap = ({ onAddressSelect, onPropertyInfoUpdate, selectedAddress }) 
     const query = e.target.value;
     setSearchQuery(query);
 
+    // Clear previous results immediately
+    if (query.length < 2) {
+      setSearchResults([]);
+      setHasSearched(false);
+      return;
+    }
+
+    // Reset search state when typing
+    setHasSearched(false);
+
     // Debounce search
     if (searchTimeout.current) {
       clearTimeout(searchTimeout.current);
     }
     searchTimeout.current = setTimeout(() => {
       searchAddress(query);
-    }, 300);
+    }, 500);
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && searchQuery.length >= 2) {
+      e.preventDefault();
+      // Clear timeout and search immediately
+      if (searchTimeout.current) {
+        clearTimeout(searchTimeout.current);
+      }
+      setHasSearched(true);
+      searchAddress(searchQuery);
+    }
   };
 
   const handleAddressSelect = async (result) => {
@@ -106,6 +152,7 @@ const AddressMap = ({ onAddressSelect, onPropertyInfoUpdate, selectedAddress }) 
     setMarkerPosition([lat, lng]);
     setSearchQuery(result.display_name);
     setSearchResults([]);
+    setHasSearched(false); // Reset search state
 
     const addressData = {
       address: result.display_name,
@@ -166,7 +213,8 @@ const AddressMap = ({ onAddressSelect, onPropertyInfoUpdate, selectedAddress }) 
             className="form-input pr-10"
             value={searchQuery}
             onChange={handleSearchChange}
-            placeholder="Search for an address in Albury..."
+            onKeyPress={handleKeyPress}
+            placeholder="Search for an address in Australia..."
           />
           {loading && (
             <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
@@ -199,15 +247,26 @@ const AddressMap = ({ onAddressSelect, onPropertyInfoUpdate, selectedAddress }) 
           </div>
         )}
         
-        {/* No results message */}
-        {searchQuery.length >= 3 && !loading && searchResults.length === 0 && (
+        {/* No results message - only show if we've actually searched and found nothing */}
+        {hasSearched && !loading && searchResults.length === 0 && searchQuery.length >= 2 && (
           <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-300 rounded-md shadow-xl p-4">
-            <p className="text-sm text-gray-500">No addresses found. Try:</p>
+            <p className="text-sm text-gray-500">No results found. Try simpler searches:</p>
             <ul className="text-xs text-gray-400 mt-1">
-              <li>• "123 Dean Street, Albury"</li>
-              <li>• "Albury Railway Station"</li>
-              <li>• Just the street name</li>
+              <li>• "Point Cook" (just suburb)</li>
+              <li>• "Huckleberry Street Point Cook"</li>
+              <li>• "Melbourne CBD"</li>
+              <li>• Click on the map instead</li>
             </ul>
+            <button 
+              onClick={() => {
+                const simplified = searchQuery.split(',')[0] + ' ' + (searchQuery.includes('Point Cook') ? 'Point Cook' : searchQuery.split(',')[1] || '');
+                setSearchQuery(simplified.trim());
+                searchAddress(simplified.trim());
+              }}
+              className="mt-2 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200"
+            >
+              Try simplified search
+            </button>
           </div>
         )}
       </div>
@@ -234,7 +293,7 @@ const AddressMap = ({ onAddressSelect, onPropertyInfoUpdate, selectedAddress }) 
       <div className="text-sm text-gray-500">
         <p className="mb-2">Search for your property address or click on the map to select a location</p>
         <div className="text-xs">
-          <strong>Try searching:</strong> "123 Dean Street, Albury" or "Albury Railway Station"
+          <strong>Try searching:</strong> "Point Cook", "Melbourne CBD", or click on the map
         </div>
       </div>
     </div>
