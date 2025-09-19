@@ -1,11 +1,43 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 
 const HomePage = () => {
+  const [selectedStructure, setSelectedStructure] = useState(null);
+
+  const structureRules = {
+    Shed: {
+      height: '≤ 4.0 metres',
+      area: '≤ 50 m²',
+      setback: '≥ 1.5m from boundaries',
+      lotSize: '≥ 450 m² minimum',
+      clause: 'SEPP Part 2, Clause 2.12'
+    },
+    Patio: {
+      height: '≤ 3.0 metres',
+      area: '≤ 40 m²',
+      setback: '≥ 1.0m from boundaries',
+      lotSize: '≥ 300 m² minimum',
+      clause: 'SEPP Part 2, Clause 2.13'
+    },
+    Pergola: {
+      height: '≤ 3.5 metres',
+      area: '≤ 35 m²',
+      setback: '≥ 1.0m from boundaries',
+      lotSize: '≥ 300 m² minimum',
+      clause: 'SEPP Part 2, Clause 2.14'
+    },
+    Carport: {
+      height: '≤ 4.0 metres',
+      area: '≤ 60 m²',
+      setback: '≥ 1.5m from boundaries',
+      lotSize: '≥ 450 m² minimum',
+      clause: 'SEPP Part 2, Clause 2.15'
+    }
+  };
   return (
     <div className="min-h-screen">
       {/* Hero Section with Gradient */}
-      <div className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white py-20">
+      <div className="bg-gradient-to-br from-green-600 to-blue-600 text-white py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="mb-8">
             <img 
@@ -110,11 +142,75 @@ const HomePage = () => {
           <h2 className="text-3xl font-bold text-gray-900 mb-8">Supported Structure Types</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {['Shed', 'Patio', 'Pergola', 'Carport'].map((structure, index) => (
-              <div key={structure} className="bg-white bg-opacity-80 backdrop-blur-sm p-6 rounded-xl shadow-lg transition-all duration-300 hover:shadow-xl transform hover:scale-105 border border-white border-opacity-20">
+              <button 
+                key={structure} 
+                onClick={() => setSelectedStructure(structure)}
+                className="bg-white bg-opacity-80 backdrop-blur-sm p-6 rounded-xl shadow-lg transition-all duration-300 hover:shadow-xl transform hover:scale-105 border border-white border-opacity-20 cursor-pointer hover:bg-green-50"
+              >
                 <h3 className="font-bold text-gray-900 text-lg">{structure}</h3>
-              </div>
+                <p className="text-sm text-gray-500 mt-2">Click for rules</p>
+              </button>
             ))}
           </div>
+
+          {/* Rules Popup Modal */}
+          {selectedStructure && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-2xl font-bold text-gray-900">{selectedStructure} Rules</h3>
+                  <button 
+                    onClick={() => setSelectedStructure(null)}
+                    className="text-gray-400 hover:text-gray-600 text-2xl"
+                  >
+                    ×
+                  </button>
+                </div>
+                
+                <div className="space-y-4">
+                  <div className="bg-green-50 p-4 rounded-lg">
+                    <h4 className="font-semibold text-green-800 mb-2">Height Limit</h4>
+                    <p className="text-green-700">{structureRules[selectedStructure].height}</p>
+                  </div>
+                  
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <h4 className="font-semibold text-blue-800 mb-2">Floor Area</h4>
+                    <p className="text-blue-700">{structureRules[selectedStructure].area}</p>
+                  </div>
+                  
+                  <div className="bg-yellow-50 p-4 rounded-lg">
+                    <h4 className="font-semibold text-yellow-800 mb-2">Setback</h4>
+                    <p className="text-yellow-700">{structureRules[selectedStructure].setback}</p>
+                  </div>
+                  
+                  <div className="bg-purple-50 p-4 rounded-lg">
+                    <h4 className="font-semibold text-purple-800 mb-2">Lot Size</h4>
+                    <p className="text-purple-700">{structureRules[selectedStructure].lotSize}</p>
+                  </div>
+                  
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h4 className="font-semibold text-gray-800 mb-2">Legal Reference</h4>
+                    <p className="text-gray-700 text-sm">{structureRules[selectedStructure].clause}</p>
+                  </div>
+                </div>
+                
+                <div className="mt-6 flex gap-3">
+                  <Link 
+                    to="/assessment" 
+                    className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors text-center"
+                  >
+                    Start Assessment
+                  </Link>
+                  <button 
+                    onClick={() => setSelectedStructure(null)}
+                    className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-3 px-4 rounded-lg transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

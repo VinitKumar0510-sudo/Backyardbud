@@ -1,299 +1,87 @@
-import React, { useState, useRef, useCallback } from 'react';
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
-import L from 'leaflet';
-import axios from 'axios';
-import 'leaflet/dist/leaflet.css';
+import React, { useState } from 'react';
 
-// Fix for default markers
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
-
-const MapClickHandler = ({ onLocationSelect }) => {
-  useMapEvents({
-    click: (e) => {
-      const { lat, lng } = e.latlng;
-      onLocationSelect({ lat, lng });
-    },
-  });
-  return null;
-};
-
-
-
-const AddressMap = ({ onAddressSelect, onPropertyInfoUpdate, selectedAddress }) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
+const AddressMap = ({ onAddressSelect, onPropertyInfoUpdate }) => {
+  const [address, setAddress] = useState('');
   const [mapCenter, setMapCenter] = useState([-36.0737, 146.9135]); // Albury coordinates
-  const [markerPosition, setMarkerPosition] = useState(null);
-  const searchTimeout = useRef(null);
 
-  const searchAddress = async (query) => {
-    if (!query || query.length < 2) {
-      setSearchResults([]);
-      setHasSearched(false);
-      return;
-    }
-
-    setLoading(true);
-    setHasSearched(true);
-    try {
-      console.log('Searching for:', query);
-      
-      // If it's already a full address, try to parse and use it directly
-      if (query.includes(',') && query.includes('Australia')) {
-        // Extract key parts for a simpler search
-        const parts = query.split(',').map(p => p.trim());
-        const streetPart = parts[0] + (parts[1] ? ', ' + parts[1] : '');
-        const suburb = parts.find(p => !p.match(/^\d/) && p !== 'Australia' && p !== 'Victoria' && p !== 'NSW' && p !== 'QLD');
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (address.trim()) {
+      // Try to geocode the address using free Nominatim API
+      try {
+        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address.trim() + ', Australia')}&limit=1`);
+        const data = await response.json();
         
-        if (streetPart && suburb) {
-          const simplifiedQuery = `${streetPart}, ${suburb}`;
-          console.log('Simplified query:', simplifiedQuery);
-          
-          const response = await fetch(
-            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(simplifiedQuery)}&countrycodes=au&limit=5&addressdetails=1`,
-            { headers: { 'User-Agent': 'BackyardBuds/1.0' } }
-          );
-          
-          if (response.ok) {
-            const data = await response.json();
-            if (data && data.length > 0) {
-              setSearchResults(data);
-              setLoading(false);
-              return;
-            }
-          }
+        let coordinates = { lat: -36.0737, lng: 146.9135 }; // Default to Albury
+        
+        if (data && data.length > 0) {
+          coordinates = {
+            lat: parseFloat(data[0].lat),
+            lng: parseFloat(data[0].lon)
+          };
+          setMapCenter([coordinates.lat, coordinates.lng]);
         }
-      }
-      
-      // Try multiple search strategies
-      const searchQueries = [
-        query,
-        query.replace(/, Australia$/, ''),
-        query.split(',')[0] + ', ' + query.split(',').slice(-3, -1).join(', '), // Street + suburb + state
-        query.split(',').slice(-3, -1).join(', ') // Just suburb + state
-      ].filter((q, i, arr) => arr.indexOf(q) === i); // Remove duplicates
-      
-      for (const searchQuery of searchQueries) {
-        console.log('Trying search:', searchQuery);
         
-        const response = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&countrycodes=au&limit=3&addressdetails=1`,
-          { headers: { 'User-Agent': 'BackyardBuds/1.0' } }
-        );
-        
-        if (response.ok) {
-          const data = await response.json();
-          if (data && data.length > 0) {
-            console.log('Found results with query:', searchQuery, data);
-            setSearchResults(data);
-            setLoading(false);
-            return;
-          }
-        }
-      }
-      
-      console.log('No results found for any query variation');
-      setSearchResults([]);
-    } catch (error) {
-      console.error('Geocoding error:', error);
-      setSearchResults([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSearchChange = (e) => {
-    const query = e.target.value;
-    setSearchQuery(query);
-
-    // Clear previous results immediately
-    if (query.length < 2) {
-      setSearchResults([]);
-      setHasSearched(false);
-      return;
-    }
-
-    // Reset search state when typing
-    setHasSearched(false);
-
-    // Debounce search
-    if (searchTimeout.current) {
-      clearTimeout(searchTimeout.current);
-    }
-    searchTimeout.current = setTimeout(() => {
-      searchAddress(query);
-    }, 500);
-  };
-
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && searchQuery.length >= 2) {
-      e.preventDefault();
-      // Clear timeout and search immediately
-      if (searchTimeout.current) {
-        clearTimeout(searchTimeout.current);
-      }
-      setHasSearched(true);
-      searchAddress(searchQuery);
-    }
-  };
-
-  const handleAddressSelect = async (result) => {
-    const lat = parseFloat(result.lat);
-    const lng = parseFloat(result.lon);
-    
-    setMapCenter([lat, lng]);
-    setMarkerPosition([lat, lng]);
-    setSearchQuery(result.display_name);
-    setSearchResults([]);
-    setHasSearched(false); // Reset search state
-
-    const addressData = {
-      address: result.display_name,
-      coordinates: { lat, lng }
-    };
-
-    onAddressSelect(addressData);
-    await fetchPropertyInfo(lat, lng);
-  };
-
-  const handleMapClick = useCallback(({ lat, lng }) => {
-    setMarkerPosition([lat, lng]);
-    reverseGeocode(lat, lng);
-    fetchPropertyInfo(lat, lng);
-  }, []);
-
-  const reverseGeocode = async (lat, lng) => {
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`
-      );
-      const data = await response.json();
-      
-      if (data.display_name) {
-        setSearchQuery(data.display_name);
         const addressData = {
-          address: data.display_name,
-          coordinates: { lat, lng }
+          address: address.trim(),
+          coordinates
+        };
+        onAddressSelect(addressData);
+        
+        if (onPropertyInfoUpdate) {
+          onPropertyInfoUpdate(null, 'Address entered manually - please verify property details');
+        }
+      } catch (error) {
+        console.error('Geocoding error:', error);
+        const addressData = {
+          address: address.trim(),
+          coordinates: { lat: -36.0737, lng: 146.9135 }
         };
         onAddressSelect(addressData);
       }
-    } catch (error) {
-      console.error('Reverse geocoding error:', error);
     }
   };
 
-  const fetchPropertyInfo = async (lat, lng) => {
-    try {
-      const response = await axios.get(`/api/property/info?lat=${lat}&lng=${lng}`);
-      if (response.data.success && onPropertyInfoUpdate) {
-        onPropertyInfoUpdate(response.data.property, response.data.message);
-      }
-    } catch (error) {
-      console.error('Property info fetch error:', error);
-      if (onPropertyInfoUpdate) {
-        onPropertyInfoUpdate(null, 'Unable to fetch property information');
-      }
-    }
-  };
+  const mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${mapCenter[1]-0.01},${mapCenter[0]-0.01},${mapCenter[1]+0.01},${mapCenter[0]+0.01}&layer=mapnik&marker=${mapCenter[0]},${mapCenter[1]}`;
 
   return (
     <div className="space-y-4">
-      <div className="relative">
-        <label className="form-label">Property Address</label>
-        <div className="relative">
+      <form onSubmit={handleSubmit}>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Property Address
+        </label>
+        <div className="flex gap-2">
           <input
             type="text"
-            className="form-input pr-10"
-            value={searchQuery}
-            onChange={handleSearchChange}
-            onKeyPress={handleKeyPress}
-            placeholder="Search for an address in Australia..."
+            className="flex-1 px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            placeholder="Enter your property address (e.g., 123 Main Street, Albury NSW)"
           />
-          {loading && (
-            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-              <svg className="animate-spin h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-            </div>
-          )}
+          <button
+            type="submit"
+            className="px-4 py-3 bg-slate-700 text-white rounded-md hover:bg-slate-800 focus:ring-2 focus:ring-slate-500"
+          >
+            Show on Map
+          </button>
         </div>
-
-        {/* Search Results Dropdown */}
-        {searchResults.length > 0 && (
-          <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-300 rounded-md shadow-xl max-h-60 overflow-auto">
-            {searchResults.map((result, index) => (
-              <button
-                key={result.place_id || index}
-                type="button"
-                className="w-full px-4 py-2 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
-                onClick={() => handleAddressSelect(result)}
-              >
-                <div className="text-sm font-medium text-gray-900">
-                  {result.display_name}
-                </div>
-                <div className="text-xs text-gray-500">
-                  {result.type && `${result.type} • `}{result.addresstype || 'Address'}
-                </div>
-              </button>
-            ))}
-          </div>
-        )}
-        
-        {/* No results message - only show if we've actually searched and found nothing */}
-        {hasSearched && !loading && searchResults.length === 0 && searchQuery.length >= 2 && (
-          <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-300 rounded-md shadow-xl p-4">
-            <p className="text-sm text-gray-500">No results found. Try simpler searches:</p>
-            <ul className="text-xs text-gray-400 mt-1">
-              <li>• "Point Cook" (just suburb)</li>
-              <li>• "Huckleberry Street Point Cook"</li>
-              <li>• "Melbourne CBD"</li>
-              <li>• Click on the map instead</li>
-            </ul>
-            <button 
-              onClick={() => {
-                const simplified = searchQuery.split(',')[0] + ' ' + (searchQuery.includes('Point Cook') ? 'Point Cook' : searchQuery.split(',')[1] || '');
-                setSearchQuery(simplified.trim());
-                searchAddress(simplified.trim());
-              }}
-              className="mt-2 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200"
-            >
-              Try simplified search
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Map */}
-      <div className="h-64 rounded-lg overflow-hidden border border-gray-300 relative z-10">
-        <MapContainer
-          center={mapCenter}
-          zoom={15}
-          style={{ height: '100%', width: '100%' }}
-          key={`${mapCenter[0]}-${mapCenter[1]}`}
-        >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-          <MapClickHandler onLocationSelect={handleMapClick} />
-          {markerPosition && (
-            <Marker position={markerPosition} />
-          )}
-        </MapContainer>
+      </form>
+      
+      <div className="h-64 rounded-lg overflow-hidden border border-gray-300">
+        <iframe
+          width="100%"
+          height="100%"
+          frameBorder="0"
+          style={{ border: 0 }}
+          src={mapUrl}
+          title="Property Location Map"
+        ></iframe>
       </div>
 
       <div className="text-sm text-gray-500">
-        <p className="mb-2">Search for your property address or click on the map to select a location</p>
+        <p className="mb-2">Enter your property address and click "Show on Map" to view location</p>
         <div className="text-xs">
-          <strong>Try searching:</strong> "Point Cook", "Melbourne CBD", or click on the map
+          <strong>Note:</strong> Using OpenStreetMap - free and no API key required
         </div>
       </div>
     </div>

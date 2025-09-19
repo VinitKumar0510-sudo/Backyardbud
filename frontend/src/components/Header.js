@@ -22,7 +22,7 @@ const Header = () => {
                 />
               </div>
               <div>
-                <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                <h1 className="text-xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
                   Backyard Buds
                 </h1>
                 <p className="text-sm text-gray-600">Albury Planning Assessment</p>
@@ -35,39 +35,39 @@ const Header = () => {
               to="/"
               className={`text-sm font-semibold transition-all duration-300 relative ${
                 isActive('/') 
-                  ? 'text-blue-600' 
-                  : 'text-gray-700 hover:text-blue-600'
+                  ? 'text-green-600' 
+                  : 'text-gray-700 hover:text-green-600'
               }`}
             >
               Home
               {isActive('/') && (
-                <div className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full"></div>
+                <div className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-green-600 to-blue-600 rounded-full"></div>
               )}
             </Link>
             <Link
               to="/assessment"
               className={`text-sm font-semibold transition-all duration-300 relative ${
                 isActive('/assessment') 
-                  ? 'text-blue-600' 
-                  : 'text-gray-700 hover:text-blue-600'
+                  ? 'text-green-600' 
+                  : 'text-gray-700 hover:text-green-600'
               }`}
             >
               Assessment
               {isActive('/assessment') && (
-                <div className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full"></div>
+                <div className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-green-600 to-blue-600 rounded-full"></div>
               )}
             </Link>
             <Link
               to="/about"
               className={`text-sm font-semibold transition-all duration-300 relative ${
                 isActive('/about') 
-                  ? 'text-blue-600' 
-                  : 'text-gray-700 hover:text-blue-600'
+                  ? 'text-green-600' 
+                  : 'text-gray-700 hover:text-green-600'
               }`}
             >
               About
               {isActive('/about') && (
-                <div className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full"></div>
+                <div className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-green-600 to-blue-600 rounded-full"></div>
               )}
             </Link>
           </nav>

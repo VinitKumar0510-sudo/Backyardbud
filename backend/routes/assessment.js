@@ -12,7 +12,7 @@ const assessmentSchema = Joi.object({
     type: Joi.string().valid('urban', 'rural').required(),
     lotSize: Joi.number().positive().required(),
     zoning: Joi.string().optional(),
-    address: Joi.string().optional(),
+    address: Joi.string().allow('').optional(),
     coordinates: Joi.object({
       lat: Joi.number().optional(),
       lng: Joi.number().optional()

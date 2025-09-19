@@ -1,89 +1,90 @@
 const express = require('express');
 const router = express.Router();
+const propertyService = require('../services/propertyService');
 
-// Mock property data for demonstration
-// In production, this would connect to council databases or GIS services
-const mockPropertyData = {
-  getPropertyInfo: (lat, lng) => {
-    // Simple logic to determine property type based on location
-    // This is mock data - in reality you'd query actual property databases
-    
-    // Determine urban vs rural based on general Australian patterns
-    // This is simplified - in reality you'd use proper land use data
-    const majorCities = [
-      { lat: -33.8688, lng: 151.2093, radius: 0.5 }, // Sydney
-      { lat: -37.8136, lng: 144.9631, radius: 0.4 }, // Melbourne
-      { lat: -27.4698, lng: 153.0251, radius: 0.3 }, // Brisbane
-      { lat: -31.9505, lng: 115.8605, radius: 0.3 }, // Perth
-      { lat: -34.9285, lng: 138.6007, radius: 0.2 }, // Adelaide
-      { lat: -35.2809, lng: 149.1300, radius: 0.2 }, // Canberra
-    ];
-    
-    const isUrban = majorCities.some(city => {
-      const distance = Math.sqrt(
-        Math.pow(lat - city.lat, 2) + Math.pow(lng - city.lng, 2)
-      );
-      return distance < city.radius;
-    });
-    
-    // Generate mock lot size based on property type
-    const lotSize = isUrban ? 
-      Math.floor(Math.random() * (800 - 300) + 300) : // Urban: 300-800m²
-      Math.floor(Math.random() * (10000 - 1000) + 1000); // Rural: 1000-10000m²
-    
-    // Determine zoning based on location and type (Australian standard zones)
-    const zoning = isUrban ? 
-      ['R1', 'R2', 'R3', 'R4'][Math.floor(Math.random() * 4)] :
-      ['RU1', 'RU2', 'RU4', 'RU5'][Math.floor(Math.random() * 4)];
-    
-    return {
-      type: isUrban ? 'urban' : 'rural',
-      lotSize,
-      zoning,
-      estimatedData: true // Flag to indicate this is estimated data
-    };
-  }
-};
-
-// Get property information based on coordinates
-router.get('/info', (req, res) => {
+// Search properties by address
+router.get('/search', (req, res) => {
   try {
-    const { lat, lng } = req.query;
+    const { q } = req.query;
     
-    if (!lat || !lng) {
+    if (!q || q.trim().length < 2) {
       return res.status(400).json({
-        error: 'Missing coordinates',
-        message: 'Latitude and longitude are required'
+        error: 'Invalid search term',
+        message: 'Search term must be at least 2 characters long'
       });
     }
     
-    const latitude = parseFloat(lat);
-    const longitude = parseFloat(lng);
+    const results = propertyService.searchByAddress(q);
     
-    if (isNaN(latitude) || isNaN(longitude)) {
-      return res.status(400).json({
-        error: 'Invalid coordinates',
-        message: 'Latitude and longitude must be valid numbers'
-      });
-    }
-    
-    // Check if coordinates are within Australia
-    if (latitude < -44 || latitude > -10 || longitude < 113 || longitude > 154) {
-      return res.status(400).json({
-        error: 'Location outside service area',
-        message: 'This tool is currently only available for properties in Australia'
-      });
-    }
-    
-    const propertyInfo = mockPropertyData.getPropertyInfo(latitude, longitude);
+    // Add formatted data for frontend
+    const formattedResults = results.map(property => ({
+      objectId: property.objectId,
+      address: property.fullAddress,
+      fullAddress: property.fullAddress,
+      houseNumber: property.houseNumber,
+      streetName: property.streetName,
+      suburb: property.suburb,
+      lotSize: property.lotSizeM2,
+      lotSizeDisplay: property.lotSizeDisplay,
+      type: property.propertyType,
+      propertyType: property.propertyType,
+      zoning: property.zoning,
+      title: property.title
+    }));
     
     res.json({
       success: true,
-      property: propertyInfo,
-      coordinates: { lat: latitude, lng: longitude },
-      message: propertyInfo.estimatedData ? 
-        'Property information is estimated. Please verify lot size and zoning details.' :
-        'Property information retrieved successfully.'
+      results: formattedResults,
+      properties: formattedResults,
+      count: formattedResults.length,
+      message: `Found ${formattedResults.length} matching properties`
+    });
+    
+  } catch (error) {
+    console.error('Property search error:', error);
+    res.status(500).json({
+      error: 'Property search failed',
+      message: 'Unable to search properties'
+    });
+  }
+});
+
+// Get property by address components
+router.get('/address', (req, res) => {
+  try {
+    const { houseNumber, streetName, suburb } = req.query;
+    
+    if (!streetName && !suburb) {
+      return res.status(400).json({
+        error: 'Missing address components',
+        message: 'Street name or suburb is required'
+      });
+    }
+    
+    const property = propertyService.getByAddress(houseNumber, streetName, suburb);
+    
+    if (!property) {
+      return res.status(404).json({
+        error: 'Property not found',
+        message: 'No property found matching the provided address'
+      });
+    }
+    
+    res.json({
+      success: true,
+      property: {
+        type: property.propertyType,
+        lotSize: property.lotSizeM2,
+        zoning: property.zoning,
+        address: property.fullAddress,
+        suburb: property.suburb,
+        postCode: property.postCode,
+        lotNumber: property.lotNumber,
+        planNumber: property.planNumber,
+        title: property.title,
+        estimatedData: false
+      },
+      message: 'Property information retrieved from Albury Council data'
     });
     
   } catch (error) {
@@ -91,6 +92,114 @@ router.get('/info', (req, res) => {
     res.status(500).json({
       error: 'Property lookup failed',
       message: 'Unable to retrieve property information'
+    });
+  }
+});
+
+// Get property by property number
+router.get('/number/:propertyNumber', (req, res) => {
+  try {
+    const { propertyNumber } = req.params;
+    
+    const property = propertyService.getByPropertyNumber(propertyNumber);
+    
+    if (!property) {
+      return res.status(404).json({
+        error: 'Property not found',
+        message: `No property found with number ${propertyNumber}`
+      });
+    }
+    
+    res.json({
+      success: true,
+      property: {
+        type: property.propertyType,
+        lotSize: property.lotSizeM2,
+        zoning: property.zoning,
+        address: property.fullAddress,
+        suburb: property.suburb,
+        postCode: property.postCode,
+        lotNumber: property.lotNumber,
+        planNumber: property.planNumber,
+        title: property.title,
+        estimatedData: false
+      },
+      message: 'Property information retrieved from Albury Council data'
+    });
+    
+  } catch (error) {
+    console.error('Property lookup error:', error);
+    res.status(500).json({
+      error: 'Property lookup failed',
+      message: 'Unable to retrieve property information'
+    });
+  }
+});
+
+// Get all suburbs
+router.get('/suburbs', (req, res) => {
+  try {
+    const suburbs = propertyService.getSuburbs();
+    
+    res.json({
+      success: true,
+      suburbs,
+      count: suburbs.length
+    });
+    
+  } catch (error) {
+    console.error('Suburbs lookup error:', error);
+    res.status(500).json({
+      error: 'Suburbs lookup failed',
+      message: 'Unable to retrieve suburbs list'
+    });
+  }
+});
+
+// Get streets in a suburb
+router.get('/streets/:suburb', (req, res) => {
+  try {
+    const { suburb } = req.params;
+    const streets = propertyService.getStreetsInSuburb(suburb);
+    
+    res.json({
+      success: true,
+      streets,
+      suburb,
+      count: streets.length
+    });
+    
+  } catch (error) {
+    console.error('Streets lookup error:', error);
+    res.status(500).json({
+      error: 'Streets lookup failed',
+      message: 'Unable to retrieve streets list'
+    });
+  }
+});
+
+// Get property statistics
+router.get('/stats', (req, res) => {
+  try {
+    const stats = propertyService.getStats();
+    
+    if (!stats) {
+      return res.status(503).json({
+        error: 'Service unavailable',
+        message: 'Property data is not loaded'
+      });
+    }
+    
+    res.json({
+      success: true,
+      stats
+    });
+    
+  } catch (error) {
+    console.error('Stats lookup error:', error);
+    res.status(500).json({
+      error: 'Stats lookup failed',
+      message: 'Unable to retrieve property statistics'
     });
   }
 });

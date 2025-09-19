@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import AddressMap from '../components/AddressMap';
+import PropertySearch from '../components/PropertySearch';
+import SelectedPropertyMap from '../components/SelectedPropertyMap';
 
 const AssessmentPage = () => {
   const navigate = useNavigate();
@@ -63,6 +65,21 @@ const AssessmentPage = () => {
     setPropertyInfoMessage(message);
   };
 
+  const handlePropertySelect = (propertyData) => {
+    setFormData(prev => ({
+      ...prev,
+      property: {
+        ...prev.property,
+        type: propertyData.type,
+        lotSize: propertyData.lotSize.toString(),
+        zoning: propertyData.zoning,
+        address: propertyData.address
+      }
+    }));
+    setPropertyInfoMessage('Property information loaded from Albury Council database');
+    setError(null);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -72,8 +89,12 @@ const AssessmentPage = () => {
       // Convert string values to numbers where needed
       const assessmentData = {
         property: {
-          ...formData.property,
-          lotSize: parseFloat(formData.property.lotSize)
+          type: formData.property.type,
+          lotSize: parseFloat(formData.property.lotSize),
+          zoning: formData.property.zoning,
+          // Only include address and coordinates if they exist
+          ...(formData.property.address && { address: formData.property.address }),
+          ...(formData.property.coordinates && { coordinates: formData.property.coordinates })
         },
         proposal: {
           ...formData.proposal,
@@ -121,16 +142,27 @@ const AssessmentPage = () => {
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <div className="bg-white bg-opacity-90 backdrop-blur-sm p-10 rounded-2xl shadow-lg border border-white border-opacity-20">
-        <div className="text-center mb-8">
-          <img 
-            src="/backyard-buds-logo.svg" 
-            alt="Backyard Buds Logo" 
-            className="w-16 h-16 mx-auto mb-4"
-          />
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3">Backyard Assessment</h1>
-          <p className="text-gray-600 text-lg">
-            Check if your backyard project qualifies as exempt development across Australia!
+        <div className="text-center mb-12">
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+            Development Approval Assessment
+          </h1>
+          <p className="text-gray-600 text-lg mb-6 max-w-2xl mx-auto">
+            Determine if your proposed structure requires council approval under NSW planning regulations
           </p>
+          <div className="flex justify-center space-x-12 text-sm text-gray-600">
+            <div className="flex items-center">
+              <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+              Complimentary Assessment
+            </div>
+            <div className="flex items-center">
+              <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+              NSW SEPP Compliant
+            </div>
+            <div className="flex items-center">
+              <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+              Immediate Results
+            </div>
+          </div>
         </div>
 
         {error && (
@@ -139,62 +171,100 @@ const AssessmentPage = () => {
           </div>
         )}
 
+        {/* Step 1: Property Location */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 mb-8">
+          <div className="flex items-center mb-6">
+            <div className="bg-slate-700 text-white rounded w-8 h-8 flex items-center justify-center font-semibold mr-4 text-sm">1</div>
+            <h2 className="text-xl font-semibold text-gray-900">Property Location</h2>
+          </div>
+          <p className="text-gray-600 mb-6">Search for your property to retrieve accurate lot size and zoning information from council records</p>
+          <PropertySearch onPropertySelect={handlePropertySelect} />
+        </div>
+        
+
+
         <form onSubmit={handleSubmit} className="space-y-8">
-          {/* Property Location */}
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Property Location</h2>
-            <AddressMap 
-              onAddressSelect={handleAddressSelect}
-              onPropertyInfoUpdate={handlePropertyInfoUpdate}
-              selectedAddress={formData.property.address}
-            />
+          {/* Step 2: Property Information */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 mb-8">
+            <div className="flex items-center mb-6">
+              <div className="bg-slate-700 text-white rounded w-8 h-8 flex items-center justify-center font-semibold mr-4 text-sm">2</div>
+              <h2 className="text-xl font-semibold text-gray-900">Property Information</h2>
+            </div>
             {propertyInfoMessage && (
-              <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
-                <p className="text-sm text-blue-800">
-                  <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+              <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-green-700 font-medium">
                   {propertyInfoMessage}
                 </p>
               </div>
             )}
-          </div>
+            
+            {/* Property Location Display */}
+            {formData.property.address && (
+              <div className="mb-6">
+                <h3 className="text-sm font-medium text-gray-700 mb-3">
+                  Selected Property Location
+                </h3>
+                <SelectedPropertyMap address={formData.property.address} />
+              </div>
+            )}
+            
+            {/* Manual Address Entry - Only show if no property selected */}
+            {!formData.property.address && (
+              <div className="mb-6">
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="text-sm font-medium text-gray-700">
+                    Manual Address Entry
+                  </h3>
+                  <span className="text-xs text-gray-500">For properties outside Albury region</span>
+                </div>
+                <AddressMap 
+                  onAddressSelect={handleAddressSelect}
+                  onPropertyInfoUpdate={handlePropertyInfoUpdate}
+                />
+              </div>
+            )}
+            
 
-          {/* Property Information */}
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Property Information</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
-                <label className="form-label">Property Type</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Property Type
+                </label>
                 <select
-                  className="form-select"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
                   value={formData.property.type}
                   onChange={(e) => handleInputChange('property', 'type', e.target.value)}
                   required
                 >
                   <option value="">Select property type</option>
-                  <option value="urban">Urban</option>
-                  <option value="rural">Rural</option>
+                  <option value="urban">Urban (city/suburban)</option>
+                  <option value="rural">Rural (farm/acreage)</option>
                 </select>
               </div>
 
               <div>
-                <label className="form-label">Lot Size (m²)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Lot Size (m²)
+                </label>
                 <input
                   type="number"
-                  className="form-input"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
                   value={formData.property.lotSize}
                   onChange={(e) => handleInputChange('property', 'lotSize', e.target.value)}
                   placeholder="e.g. 800"
                   min="1"
                   required
                 />
+                <p className="text-xs text-gray-500 mt-1">As shown on property title or rates notice</p>
               </div>
 
               <div>
-                <label className="form-label">Zoning (Optional)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Zoning Classification
+                </label>
                 <select
-                  className="form-select"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
                   value={formData.property.zoning}
                   onChange={(e) => handleInputChange('property', 'zoning', e.target.value)}
                 >
@@ -209,32 +279,40 @@ const AssessmentPage = () => {
             </div>
           </div>
 
-          {/* Proposal Details */}
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Proposal Details</h2>
+          {/* Step 3: Proposed Development */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 mb-8">
+            <div className="flex items-center mb-6">
+              <div className="bg-slate-700 text-white rounded w-8 h-8 flex items-center justify-center font-semibold mr-4 text-sm">3</div>
+              <h2 className="text-xl font-semibold text-gray-900">Proposed Development</h2>
+            </div>
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="form-label">Structure Type</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Structure Type
+                </label>
                 <select
-                  className="form-select"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
                   value={formData.proposal.structureType}
                   onChange={(e) => handleInputChange('proposal', 'structureType', e.target.value)}
                   required
                 >
                   <option value="">Select structure type</option>
-                  <option value="shed">Shed</option>
-                  <option value="patio">Patio</option>
-                  <option value="pergola">Pergola</option>
-                  <option value="carport">Carport</option>
+                  <option value="shed">Shed (storage/workshop)</option>
+                  <option value="patio">Patio (covered outdoor area)</option>
+                  <option value="pergola">Pergola (garden structure)</option>
+                  <option value="carport">Carport (vehicle shelter)</option>
                 </select>
               </div>
 
               <div>
-                <label className="form-label">Height (metres)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Maximum Height (metres)
+                </label>
                 <input
                   type="number"
                   step="0.1"
-                  className="form-input"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
                   value={formData.proposal.height}
                   onChange={(e) => handleInputChange('proposal', 'height', e.target.value)}
                   placeholder="e.g. 3.5"
@@ -242,47 +320,51 @@ const AssessmentPage = () => {
                   max="10"
                   required
                 />
+                <p className="text-xs text-gray-500 mt-1">Measured from natural ground level to highest point</p>
               </div>
 
               <div>
-                <label className="form-label">Floor Area (m²)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Floor Area (m²)
+                </label>
                 <input
                   type="number"
                   step="0.1"
-                  className="form-input"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
                   value={formData.proposal.floorArea}
                   onChange={(e) => handleInputChange('proposal', 'floorArea', e.target.value)}
                   placeholder="e.g. 40"
                   min="0.1"
                   required
                 />
+                <p className="text-xs text-gray-500 mt-1">Total covered area (length × width)</p>
               </div>
 
               <div>
-                <label className="form-label">Distance from Boundary (metres)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Minimum Boundary Setback (metres)
+                </label>
                 <input
                   type="number"
                   step="0.1"
-                  className="form-input"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
                   value={formData.proposal.distanceFromBoundary}
                   onChange={(e) => handleInputChange('proposal', 'distanceFromBoundary', e.target.value)}
                   placeholder="e.g. 2.5"
                   min="0"
                   required
                 />
-                <p className="text-sm text-gray-500 mt-1">
-                  Minimum distance from any property boundary
-                </p>
+                <p className="text-xs text-gray-500 mt-1">Closest distance to any property boundary</p>
               </div>
             </div>
           </div>
 
           {/* Submit Button */}
-          <div className="flex justify-center pt-6">
+          <div className="text-center pt-8">
             <button
               type="submit"
               disabled={!isFormValid() || loading}
-              className={`btn-primary px-8 py-3 text-lg ${
+              className={`bg-slate-700 hover:bg-slate-800 text-white font-semibold py-4 px-8 rounded-md shadow-sm transition-colors duration-200 ${
                 (!isFormValid() || loading) ? 'opacity-50 cursor-not-allowed' : ''
               }`}
             >
@@ -292,41 +374,45 @@ const AssessmentPage = () => {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  Assessing...
+                  Processing Assessment...
                 </span>
               ) : (
-                'Assess Proposal'
+                'Submit Assessment'
               )}
             </button>
+            <p className="text-gray-500 mt-3 text-sm">Assessment typically completes within 30 seconds</p>
           </div>
         </form>
 
-        {/* Help Text */}
-        <div className="mt-8 p-6 rounded-xl shadow-sm bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200">
-          <h3 className="font-bold text-blue-900 mb-3 flex items-center">
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            Need Help?
+        {/* Information Panel */}
+        <div className="mt-8 bg-gray-50 rounded-lg p-6 border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">
+            Assessment Guidelines
           </h3>
-          <ul className="text-blue-800 space-y-2">
-            <li className="flex items-start">
-              <span className="text-blue-600 mr-2">•</span>
-              Measurements should be in metres and square metres
-            </li>
-            <li className="flex items-start">
-              <span className="text-blue-600 mr-2">•</span>
-              Distance from boundary is the closest distance to any property boundary
-            </li>
-            <li className="flex items-start">
-              <span className="text-blue-600 mr-2">•</span>
-              Height is measured from natural ground level to the highest point
-            </li>
-            <li className="flex items-start">
-              <span className="text-blue-600 mr-2">•</span>
-              Rules may vary by state - this tool uses NSW SEPP guidelines
-            </li>
-          </ul>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+            <div>
+              <h4 className="font-medium text-gray-800 mb-2">Measurement Requirements</h4>
+              <ul className="text-gray-600 space-y-1">
+                <li>• All measurements must be accurate to 0.1m</li>
+                <li>• Height measured from natural ground level</li>
+                <li>• Floor area includes all covered areas</li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-medium text-gray-800 mb-2">Boundary Setbacks</h4>
+              <ul className="text-gray-600 space-y-1">
+                <li>• Measure to all property boundaries</li>
+                <li>• Include front, side, and rear setbacks</li>
+                <li>• Use the minimum distance found</li>
+              </ul>
+            </div>
+          </div>
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <p className="text-sm text-gray-600">
+              <strong>Disclaimer:</strong> This assessment is based on NSW State Environmental Planning Policy (SEPP) regulations. 
+              Local council requirements may vary. Always consult with your local council for definitive approval requirements.
+            </p>
+          </div>
         </div>
       </div>
     </div>
