@@ -228,4 +228,4 @@ class PropertyService {
 // Create singleton instance
 const propertyService = new PropertyService();
 
-module.exports = propertyService;
+module.exports = propertyService;// Dataset integration
