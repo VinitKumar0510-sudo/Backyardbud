@@ -76,4 +76,4 @@ class HeritageService {
   }
 }
 
-module.exports = new HeritageService();
+module.exports = new HeritageService();// Heritage service
