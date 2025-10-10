@@ -720,3 +720,4 @@ const AssessmentPage = () => {
 };
 
 export default AssessmentPage;
+// UI enhancements
